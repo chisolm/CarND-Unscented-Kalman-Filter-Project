@@ -100,6 +100,9 @@ public:
   MatrixXd S_;
   MatrixXd S_lidar_;
 
+  double NIS_radar_;
+  double NIS_lidar_;
+
 
   /**
    * Constructor

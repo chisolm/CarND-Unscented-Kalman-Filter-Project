@@ -12,7 +12,7 @@ using std::vector;
  */
 UKF::UKF() {
 	// if this is false, laser measurements will be ignored (except during init)
-	use_laser_ = false;
+	use_laser_ = true;
 
 	// if this is false, radar measurements will be ignored (except during init)
 	use_radar_ = true;
@@ -25,11 +25,11 @@ UKF::UKF() {
 
 	// Process noise standard deviation longitudinal acceleration in m/s^2
 	// TODO need to tune
-	std_a_ = 30;
+	std_a_ = 0.5;  // 30;
 
 	// Process noise standard deviation yaw acceleration in rad/s^2
 	// TODO need to tune
-	std_yawdd_ = 30;
+	std_yawdd_ = 0.3;  // 30;
 
 	// Laser measurement noise standard deviation position1 in m
 	std_laspx_ = 0.15;
@@ -100,6 +100,10 @@ UKF::UKF() {
 	weights.fill(0.5/(n_aug_+lambda_));
 	weights(0) = lambda_/(lambda_+n_aug_);
 
+	NIS_lidar_ = 0.0;
+	NIS_radar_ = 0.0;
+
+
 	/**
 	TODO:
 
@@ -135,9 +139,9 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 
 		P_ << 1, 0, 0, 0, 0,
 			0, 1, 0, 0, 0,
-			0, 0, 1, 0, 0,
-			0, 0, 0, 1, 0,
-			0, 0, 0, 0, 1;
+			0, 0, .1, 0, 0,
+			0, 0, 0, .1, 0,
+			0, 0, 0, 0, .1;
 
         MatrixXd Pxx;
         Pxx = MatrixXd(7, 7);
@@ -215,11 +219,11 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 
 	// TODO more initialization?
 	cout << "Delta T = " << endl << dt << endl;
-	cout << "Before Predition x_ = " << endl << x_ << endl;
+	cout << "Before Predition x_ = " << x_.transpose() << endl;
 	cout << "Before Predition P_ = " << endl << P_ << endl;
 
 	Prediction(dt);
-	cout << "After Predition x_ = " << endl << x_ << endl;
+	cout << "After Predition x_ = " << x_.transpose() << endl;
 	cout << "After Predition P_ = " << endl << P_ << endl;
 
 	if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
@@ -345,10 +349,14 @@ void UKF::UpdateLidarState(MeasurementPackage meas_package) {
 	//calculate Kalman gain K;
 	MatrixXd K = MatrixXd(n_x_, n_z_lidar_);
 	K = Tc * S_lidar_.inverse();
+	VectorXd z_diff = (z - z_pred_lidar_);
+
+	//calculate NIS
+	NIS_lidar_ = z_diff.transpose() * S_lidar_.inverse() * z_diff;
 
 	//update state mean and covariance matrix
 
-	x_ = x_ + K * (z - z_pred_lidar_);
+	x_ = x_ + K * (z_diff);
 	P_ = P_ - K * S_lidar_ * K.transpose();
 
 }
@@ -385,6 +393,24 @@ void UKF::PredictRadarMeasurement() {
 		Zsig_(0, i) = r;
 		Zsig_(1, i) = phi;
 		Zsig_(2, i) = rdot;
+		std::cout << "Zsig_ i  " << i << " " << Zsig_.col(i).transpose() << std::endl;
+	}
+
+    // put aall Zsig on same side of -pi/pi border
+	if (fabs(Zsig_(1, 0)) > 3.0) {
+		for (int i = 1; i < 2 * n_aug_ + 1; i++) {
+			std::cout << "Zsig_ i tval " << i << " " << (Zsig_(1, 0) < 0.0) << " " << (Zsig_(1, i) > 0.0) << std::endl;
+			std::cout << "Zsig_ i tval " << i << " " << (Zsig_(1, 0) > 0.0) << " " << (Zsig_(1, i) < 0.0) << std::endl;
+			if ((Zsig_(1, 0) < 0.0) && (Zsig_(1, i) > 0.0)) {
+				Zsig_(1, i)-=2.*M_PI;
+			std::cout << "Zsig_ i fix " << i << " " << Zsig_.col(i).transpose() << std::endl;
+			}
+			if ((Zsig_(1, 0) > 0.0) && (Zsig_(1, i) < 0.0)) {
+				Zsig_(1, i)+=2.*M_PI;
+			std::cout << "Zsig_ i fix " << i << " " << Zsig_.col(i).transpose() << std::endl;
+			}
+			std::cout << "Zsig_ i sum " << i << " " << Zsig_.col(i).transpose() << std::endl;
+		}
 	}
 
 	//calculate mean predicted measurement
@@ -406,9 +432,12 @@ void UKF::PredictRadarMeasurement() {
 		//angle normalization
 		while (z_diff(1)> M_PI) z_diff(1)-=2.*M_PI;
 		while (z_diff(1)<-M_PI) z_diff(1)+=2.*M_PI;
+		std::cout << "z_diff i  " << i << " " << z_diff.transpose() << std::endl;
 
 		S_ = S_ + weights(i) * z_diff * z_diff.transpose() ;
 	}
+
+	std::cout << "S_  " << std::endl << S_ << std::endl;
 
 	S_ = S_ + R_;
 }
@@ -432,8 +461,12 @@ void UKF::UpdateRadarState(MeasurementPackage meas_package) {
 		VectorXd z_diff = Zsig_.col(i) - z_pred_;
 		//angle normalization
 
+// TODO Again here, i need to make sure Zsig - zpred are on the same side of -pi/pi
+// should be ok, adjusting Zsig above
+// TODO probably x_diff(3) too
 		while (x_diff(3)> M_PI) x_diff(3)-=2.*M_PI;
 		while (x_diff(3)<-M_PI) x_diff(3)+=2.*M_PI;
+		std::cout << "z_diff 2nd i  " << i << " " << z_diff.transpose() << std::endl;
 
 		Tc = Tc + weights(i) * x_diff * z_diff.transpose() ;
 	}
@@ -446,7 +479,15 @@ void UKF::UpdateRadarState(MeasurementPackage meas_package) {
 
 	std::cout << "K " << std::endl << K << std::endl;
 	std::cout << "z - z_pred_ " << std::endl << z - z_pred_ << std::endl;
-	x_ = x_ + K * (z - z_pred_);
+
+	VectorXd z_diff = z - z_pred_;
+// TODO Again here, i need to make sure z - zpred are on the same side of -pi/pi
+	std::cout << "z_diff 3rd " << z_diff.transpose() << std::endl;
+	while (z_diff(1)> M_PI) z_diff(1)-=2.*M_PI;
+	std::cout << "z_diff 3rd " << z_diff.transpose() << std::endl;
+	NIS_radar_ = z_diff.transpose() * S_.inverse() * z_diff;
+
+	x_ = x_ + K * (z_diff);
 	P_ = P_ - K * S_ * K.transpose();
 
 }
@@ -479,7 +520,7 @@ void UKF::AugmentedSigmaPoints() {
 	//create square root matrix
 	MatrixXd A = P_aug_.llt().matrixL();
 	std::cout << "A " << std::endl << A << std::endl;
-	if (A(6,6) == P_aug(6,6)) {
+	if (A(6,6) == P_aug_(6,6)) {
 		std::cout << "This is the llt() error case." << std::endl;
 	}
 	
