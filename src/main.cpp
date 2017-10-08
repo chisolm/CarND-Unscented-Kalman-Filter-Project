@@ -43,6 +43,8 @@ int main()
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
 
+    static int max_run = 500;
+
     if (length && length > 2 && data[0] == '4' && data[1] == '2')
     {
 
@@ -67,6 +69,9 @@ int main()
     	  iss >> sensor_type;
 
     	  if (sensor_type.compare("L") == 0) {
+              if (max_run <= 0)
+                exit(-1);
+              max_run--;
       	  		meas_package.sensor_type_ = MeasurementPackage::LASER;
           		meas_package.raw_measurements_ = VectorXd(2);
           		float px;
