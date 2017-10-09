@@ -11,6 +11,13 @@ This project involves the Term 2 Simulator which can be downloaded [here](https:
 4. make
 5. ./UnscentedKF
 
+### Attribution
+
+The bulk of the code is from my class room exercises from the udacity class on self driving 
+cars, lesson 7 "Unscented Kalman Filters".  The infrastructure code in this project is
+supplied from project repository [here](https://github.com/udacity/CarND-Unscented-Kalman-Filter-Project).
+
+
 ---
 
 [//]: # (Image References)
