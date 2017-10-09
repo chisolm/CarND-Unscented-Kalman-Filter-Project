@@ -69,8 +69,8 @@ int main()
     	  iss >> sensor_type;
 
     	  if (sensor_type.compare("L") == 0) {
-              if (max_run <= 0)
-                exit(-1);
+              //if (max_run <= 0)
+              //  exit(-1);
               max_run--;
       	  		meas_package.sensor_type_ = MeasurementPackage::LASER;
           		meas_package.raw_measurements_ = VectorXd(2);
@@ -121,6 +121,7 @@ int main()
     	  double p_y = ukf.x_(1);
     	  double v  = ukf.x_(2);
     	  double yaw = ukf.x_(3);
+        double yawd = ukf.x_(4);
 
     	  double v1 = cos(yaw)*v;
     	  double v2 = sin(yaw)*v;
@@ -129,7 +130,24 @@ int main()
     	  estimate(1) = p_y;
     	  estimate(2) = v1;
     	  estimate(3) = v2;
-    	  
+    	 
+        ukf.vis_out_file << x_gt << "\t" ;  // p1
+        ukf.vis_out_file << y_gt << "\t" ;  // p2
+        ukf.vis_out_file << v << "\t" ;  // these are not correct value for python notebook
+        ukf.vis_out_file << yaw << "\t" ;  // these are not correct value for python notebook
+        ukf.vis_out_file << yawd << "\t" ;  // these are not correct value for python notebook
+        ukf.vis_out_file << v1 << "\t" ;  // x_ v estimate - x component
+        ukf.vis_out_file << v2 << "\t" ;  // x_ v estimate - y component
+        ukf.vis_out_file << vx_gt << "\t" ;  // v1_gt
+        ukf.vis_out_file << vy_gt << "\t" ;  // v2_gt
+        ukf.vis_out_file << ukf.NIS_lidar_ << "\t" ;
+        ukf.vis_out_file << ukf.NIS_radar_ << "\t" ;
+        ukf.vis_out_file << ukf.P_(0, 0) << "\t" ;
+        ukf.vis_out_file << ukf.P_(1, 1) << "\t" ;
+        ukf.vis_out_file << ukf.P_(2, 2) << "\t" ;
+        ukf.vis_out_file << ukf.P_(3, 3) << "\t" ;
+        ukf.vis_out_file << ukf.P_(4, 4) << "\n" ;
+
     	  estimations.push_back(estimate);
 
     	  VectorXd RMSE = tools.CalculateRMSE(estimations, ground_truth);

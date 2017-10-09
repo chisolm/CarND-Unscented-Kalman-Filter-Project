@@ -1,18 +1,17 @@
 #ifndef UKF_H
 #define UKF_H
 
-#include "measurement_package.h"
-#include "Eigen/Dense"
 #include <vector>
 #include <string>
 #include <fstream>
+#include "measurement_package.h"
+#include "Eigen/Dense"
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 
 class UKF {
 public:
-
   ///* initially set to false, set to true in first call of ProcessMeasurement
   bool is_initialized_;
 
@@ -40,9 +39,6 @@ public:
   ///* predicted sigma points matrix
   MatrixXd Xsig_aug_;
 
-  ///* time when the state is true, in us
-  long long time_us_;
-
   ///* Process noise standard deviation longitudinal acceleration in m/s^2
   double std_a_;
 
@@ -62,7 +58,7 @@ public:
   double std_radphi_;
 
   ///* Radar measurement noise standard deviation radius change in m/s
-  double std_radrd_ ;
+  double std_radrd_;
 
   ///* Weights of sigma points
   VectorXd weights_;
@@ -80,7 +76,7 @@ public:
   double lambda_;
 
   // previous timestamp
-  long long previous_timestamp_;
+  double previous_timestamp_;
 
   double sqrt_lambda_n_aug;
   VectorXd weights;
@@ -88,21 +84,22 @@ public:
   MatrixXd R_;
   MatrixXd R_lidar_;
 
-  //create matrix for sigma points in measurement space
+  // create matrix for sigma points in measurement space
   MatrixXd Zsig_;
   MatrixXd Zsig_lidar_;
 
-  //mean predicted measurement
+  // mean predicted measurement
   VectorXd z_pred_;
   VectorXd z_pred_lidar_;
 
-  //measurement covariance matrix S
+  // measurement covariance matrix S
   MatrixXd S_;
   MatrixXd S_lidar_;
 
   double NIS_radar_;
   double NIS_lidar_;
 
+  std::ofstream vis_out_file;
 
   /**
    * Constructor
@@ -148,7 +145,6 @@ public:
 
   void PredictLidarMeasurement();
   void UpdateLidarState(MeasurementPackage meas_package);
-
 };
 
 #endif /* UKF_H */
